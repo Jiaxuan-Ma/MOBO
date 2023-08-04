@@ -12,7 +12,7 @@ from typing import Optional
 
 class Mobo(object):
     """
-    Multi Objective Optimization Based On Bayes.
+    Multi Objective Bayesian Optimization.
 
     Parameters
     ----------
