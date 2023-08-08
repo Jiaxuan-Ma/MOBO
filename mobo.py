@@ -29,37 +29,53 @@ class Mobo4mat:
     --------
     """
     def fit(self, X, y, visual_data, method, number, objective, ref_point):
-        Xtrain = X
-        Ytrain = y
-        Xtest = visual_data 
-        target_name = Ytrain.columns.tolist()
-        feature_name = Xtrain.columns.tolist()
-        if objective == 'min':
-            kernel = RBF(length_scale=1.0)
-            gp_model = GaussianProcessRegressor(kernel=kernel)
-            gp_model.fit(Xtrain, Ytrain)
-            Ypred, Ystd = gp_model.predict(Xtest, return_std=True)
-            Ypred = pd.DataFrame(Ypred, columns=Ytrain.columns.tolist())
 
-            if method == 'HV':
-                    HV_values = []
-                    for i in range(Ypred.shape[0]):
-                        i_Ypred = Ypred.iloc[i]
-                        Ytrain_i_Ypred = Ytrain.append(i_Ypred)
-                        i_pareto_front = self.find_non_dominated_solutions(Ytrain_i_Ypred.values, Ytrain_i_Ypred.columns.tolist())
-                        i_HV_value = self.dominated_hypervolume(i_pareto_front, ref_point)
-                        HV_values.append(i_HV_value)
-                    
-                    HV_values = pd.DataFrame(HV_values, columns=['HV values'])
-                    HV_values.set_index(Xtest.index, inplace=True)
+        if objective == 'max':
+            Xtrain = -X
+            Ytrain = -y
+            Xtest = -visual_data
+            target_name = Ytrain.columns.tolist()
+            feature_name = Xtrain.columns.tolist()
+            ref_point = -np.array(ref_point)
 
-                    max_idx = HV_values.nlargest(number, 'HV values').index
-                    recommend_point = Xtest.loc[max_idx]
-                    # Xtest = Xtest.drop(max_idx)
-                    print('The maximum value of HV: \n ', tabulate(HV_values.loc[max_idx].values))
-                    print('The recommended point is :\n', tabulate(recommend_point.values, headers = feature_name+target_name, tablefmt = 'pretty'))
-            elif method == 'EHVI':
-                pass
+        elif objective == 'min':
+            Xtrain = X
+            Ytrain = y
+            Xtest = visual_data 
+            target_name = Ytrain.columns.tolist()
+            feature_name = Xtrain.columns.tolist()
+            ref_point = np.array(ref_point)
+
+        kernel = RBF(length_scale=1.0)
+        gp_model = GaussianProcessRegressor(kernel=kernel)
+        gp_model.fit(Xtrain, Ytrain)
+        Ypred, Ystd = gp_model.predict(Xtest, return_std=True)
+        Ypred = pd.DataFrame(Ypred, columns=Ytrain.columns.tolist())
+
+        if method == 'HV':
+            HV_values = []
+            for i in range(Ypred.shape[0]):
+                i_Ypred = Ypred.iloc[i]
+                Ytrain_i_Ypred = Ytrain.append(i_Ypred)
+                i_pareto_front = self.find_non_dominated_solutions(Ytrain_i_Ypred.values, Ytrain_i_Ypred.columns.tolist())
+                i_HV_value = self.dominated_hypervolume(i_pareto_front, ref_point)
+                HV_values.append(i_HV_value)
+            
+            HV_values = pd.DataFrame(HV_values, columns=['HV values'])
+            HV_values.set_index(Xtest.index, inplace=True)
+
+            max_idx = HV_values.nlargest(number, 'HV values').index
+
+            if objective == 'max':
+                recommend_point = -Xtest.loc[max_idx]
+            elif objective == 'min':
+                recommend_point = Xtest.loc[max_idx]
+            # Xtest = Xtest.drop(max_idx)
+            print('The maximum value of HV: \n ', tabulate(HV_values.loc[max_idx].values))
+            print('The recommended point is :\n', tabulate(recommend_point.values, headers = feature_name+target_name, tablefmt = 'pretty'))
+
+        elif method == 'EHVI':
+            pass
         elif objective == 'max':
             pass
 
@@ -111,12 +127,8 @@ class Mobo4mat:
                     frontiers.extend(next_frontier)  
         return frontiers
     
-
     def find_non_dominated_solutions(self, fitness_values, feature_name):
         frontiers = self.non_dominated_sorting(fitness_values)
-        # non_dominated_solutions_idx = []
-        # for frontier in frontiers:
-        #     non_dominated_solutions_idx.extend(frontier)
 
         non_dominated_solutions_Data = fitness_values[frontiers]
         non_dominated_solutions_Data = pd.DataFrame(non_dominated_solutions_Data, columns=feature_name)
@@ -132,11 +144,11 @@ class Mobo4mat:
             S += (pareto_data[i,0] - pareto_data[i+1,0]) * (pareto_data[0,1] - pareto_data[i+1,1])
         return S
     
-
-df = pd.read_csv('./test.csv')
+df = pd.read_csv('./UTS-EC.csv')
+vs = pd.read_csv('./visual samples.csv')
 Xtrain = df.iloc[:,:-2]
 Ytrain = df.iloc[:,-2:]
 
 mobo = Mobo4mat()
 
-mobo.fit(X = Xtrain, y = Ytrain, visual_data=Xtrain, method='HV',number= 1, objective='min', ref_point=[10, 10])
+mobo.fit(X = Xtrain, y = Ytrain, visual_data=vs, method='HV',number= 1, objective='max', ref_point=[50, 50])
