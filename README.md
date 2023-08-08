@@ -1,2 +1,2 @@
 # MOBO
-Multi-Objective Bayesian OPtimizian
+Multi-Objective Bayesian Optimizian
